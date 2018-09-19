@@ -34,9 +34,4 @@ setup(
         'pymongo',
     ],
     zip_safe=False,
-    entry_points={
-        "console_scripts": [
-            "rqalpha_quotation_server = rqalpha_mod_stock_realtime:quotation_server"
-        ]
-    },
 )
