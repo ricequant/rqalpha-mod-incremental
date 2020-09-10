@@ -13,7 +13,6 @@ class IncrementalEventSource(SimulationEventSource):
     def __init__(self, env, event_start_date):
         super(IncrementalEventSource, self).__init__(env)
         self._event_start_date = event_start_date
-        self._event_end_date = event_end_date
 
     def events(self, start_date, end_date, frequency):
         s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
