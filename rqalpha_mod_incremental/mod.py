@@ -89,11 +89,13 @@ class IncrementalMod(AbstractMod):
             self._meta["origin_start_date"] = persist_meta["origin_start_date"]
             self._meta["start_date"] = persist_meta["start_date"]
             self._meta["last_end_time"] = self._env.config.base.end_date.strftime("%Y-%m-%d")
-        event_source = IncrementalEventSource(env, event_start_time, self._env.config.base.end_date)
-        env.set_event_source(event_source)
         env.set_data_source(IncrementcalDataSource(self._env.config.base.data_bundle_path,
                                                    getattr(self._env.config.base, "future_info", {}),
                                                    self._env.config.base.start_date))
+
+        event_source = IncrementalEventSource(env, event_start_time)
+        env.set_event_source(event_source)
+
 
     def _init(self, event):
         env = self._env
