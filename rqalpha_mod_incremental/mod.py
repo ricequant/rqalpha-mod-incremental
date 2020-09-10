@@ -82,7 +82,7 @@ class IncrementalMod(AbstractMod):
         persist_meta = self._recorder.load_meta()
         if persist_meta:
             # 不修改回测开始时间
-            self._env.config.start_time = persist_meta['start_date']
+            self._env.config.base.start_date = persist_meta['start_date']
             event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'], '%Y-%m-%d').date() + datetime.timedelta(days=1)
             # 代表历史有运行过，根据历史上次运行的end_date下一天设为事件发送的start_time
 
@@ -92,7 +92,8 @@ class IncrementalMod(AbstractMod):
         event_source = IncrementalEventSource(env, event_start_time, self._env.config.base.end_date)
         env.set_event_source(event_source)
         env.set_data_source(IncrementcalDataSource(self._env.config.base.data_bundle_path,
-                                                    getattr(self._env.config.base, "future_info", {})))
+                                                   getattr(self._env.config.base, "future_info", {}),
+                                                   self._env.config.base.start_date))
 
     def _init(self, event):
         env = self._env
