@@ -93,9 +93,8 @@ class IncrementalMod(AbstractMod):
                                                    getattr(self._env.config.base, "future_info", {}),
                                                    self._env.config.base.start_date))
 
-        event_source = IncrementalEventSource(env, event_start_time)
+        event_source = IncrementalEventSource(env, event_start_time, self._env.config.base.end_date)
         env.set_event_source(event_source)
-
 
     def _init(self, event):
         env = self._env

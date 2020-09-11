@@ -10,10 +10,12 @@ from rqalpha.mod.rqalpha_mod_sys_simulation.simulation_event_source import Simul
 from rqalpha.utils.datetime_func import convert_int_to_date
 
 class IncrementalEventSource(SimulationEventSource):
-    def __init__(self, env, event_start_date):
+    def __init__(self, env, event_start_date, end_date):
         super(IncrementalEventSource, self).__init__(env)
         self._event_start_date = event_start_date
+        self._end_date = end_date
 
     def events(self, start_date, end_date, frequency):
         s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
-        return super(IncrementalEventSource, self).events(self._event_start_date, convert_int_to_date(e), frequency)
+        event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < self._end_date else self._end_date
+        return super(IncrementalEventSource, self).events(self._event_start_date, event_end_date, frequency)
