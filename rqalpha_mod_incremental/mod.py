@@ -98,25 +98,17 @@ class IncrementalMod(AbstractMod):
 
     def _init(self, event):
         env = self._env
-
         env.event_bus.add_listener(EVENT.TRADE, self.on_trade)
         env.event_bus.add_listener(EVENT.POST_SETTLEMENT, self.on_settlement)
 
     def on_trade(self, event):
-        trade = event.trade
-        self._recorder.append_trade(trade)
+        pass
 
     def on_settlement(self, event):
-        calendar_dt = self._env.calendar_dt
-        portfolio = self._env.portfolio
-        # bm_portfolio = self._env.benchmark_portfolio
-        bm_portfolio = None
-        self._recorder.append_portfolio(calendar_dt, portfolio, bm_portfolio)
+        pass
 
     def tear_down(self, success, exception=None):
         if exception is None:
-            # 仅当成功运行才写入数据
-            if self._recorder:
-                self._recorder.store_meta(self._meta)
-                self._recorder.flush()
-                self._recorder.close()
+            self._recorder.store_meta(self._meta)
+            self._recorder.flush()
+            self._recorder.close()

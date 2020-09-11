@@ -78,9 +78,6 @@ class CsvRecorder(Recorder):
         self._meta_json_path = os.path.join(folder, "meta.json")
         self._file_list = []
         self._pending_tasks = []
-        self._trade_writer = self._create_writer(os.path.join(folder, "trade.csv"), self.TRADE_CSV_HEADER)
-        self._portfolio_writer = self._create_writer(os.path.join(folder, "portfolio.csv"), self.PORTFOLIO_CSV_HEADER)
-        self._bm_portfolio_writer = self._create_writer(os.path.join(folder, "bm_portfolio.csv"), self.PORTFOLIO_CSV_HEADER)
 
     def load_meta(self):
         if os.path.exists(self._meta_json_path):
