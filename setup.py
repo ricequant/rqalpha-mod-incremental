@@ -23,7 +23,7 @@ from setuptools import (
 
 setup(
     name='rqalpha-mod-incremental',
-    version='0.0.3',
+    version='0.0.4',
     description='rqalpha-mod-incremental',
     packages=find_packages(exclude=[]),
     author='ricequant',
