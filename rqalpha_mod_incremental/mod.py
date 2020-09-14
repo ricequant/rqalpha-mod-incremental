@@ -19,7 +19,7 @@ import datetime
 
 from rqalpha.utils.logger import system_log
 from rqalpha.interface import AbstractMod
-from rqalpha.events import EVENT
+from rqalpha.core.events import EVENT
 from rqalpha.const import PERSIST_MODE
 from rqalpha_mod_incremental.persist_providers import DiskPersistProvider
 from rqalpha.utils.i18n import gettext as _
@@ -82,13 +82,13 @@ class IncrementalMod(AbstractMod):
         persist_meta = self._recorder.load_meta()
         if persist_meta:
             # 不修改回测开始时间
-            self._env.config.base.start_date = persist_meta['start_date']
+            self._env.config.base.start_date = datetime.datetime.strptime(persist_meta['start_date'], '%Y-%m-%d').date()
             event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'], '%Y-%m-%d').date() + datetime.timedelta(days=1)
             # 代表历史有运行过，根据历史上次运行的end_date下一天设为事件发送的start_time
-
             self._meta["origin_start_date"] = persist_meta["origin_start_date"]
             self._meta["start_date"] = persist_meta["start_date"]
-            self._meta["last_end_time"] = self._env.config.base.end_date.strftime("%Y-%m-%d")
+            if self._meta["last_end_time"] <= persist_meta["last_end_time"]:
+                raise ValueError('The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
         env.set_data_source(IncrementcalDataSource(self._env.config.base.data_bundle_path,
                                                    getattr(self._env.config.base, "future_info", {}),
                                                    self._env.config.base.start_date))
