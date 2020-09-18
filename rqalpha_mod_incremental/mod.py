@@ -40,6 +40,9 @@ class IncrementalMod(AbstractMod):
         self._recorder = None
         self._mod_config = mod_config
 
+        if not self._mod_config.persist_folder:
+            return
+
         self._set_env_and_data_source()
 
         env.config.base.persist = True
@@ -108,6 +111,8 @@ class IncrementalMod(AbstractMod):
         pass
 
     def tear_down(self, success, exception=None):
+        if not self._mod_config.persist_folder:
+            return
         if exception is None:
             self._recorder.store_meta(self._meta)
             self._recorder.flush()
