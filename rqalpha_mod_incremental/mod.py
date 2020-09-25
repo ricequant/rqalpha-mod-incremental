@@ -27,6 +27,9 @@ from rqalpha.utils.i18n import gettext as _
 from rqalpha_mod_incremental import persist_providers, recorders
 from rqalpha_mod_incremental.incremental_event_source import IncrementalEventSource
 from rqalpha_mod_incremental.base_data_source.data_source import IncrementcalDataSource
+from rqalpha.const import INSTRUMENT_TYPE, DEFAULT_ACCOUNT_TYPE, MARKET, TRADING_CALENDAR_TYPE
+from rqalpha.utils.datetime_func import convert_int_to_date
+from rqalpha.core.events import Event, EVENT
 
 
 class IncrementalMod(AbstractMod):
@@ -34,6 +37,7 @@ class IncrementalMod(AbstractMod):
         self._env = None
         self._start_date = None
         self._end_date = None
+        self._event_start_time = None
 
     def start_up(self, env, mod_config):
         self._env = env
@@ -57,8 +61,9 @@ class IncrementalMod(AbstractMod):
         if mod_config.recorder == "CsvRecorder":
             if not mod_config.persist_folder:
                 raise RuntimeError(_(u"You need to set persist_folder to use CsvRecorder"))
-            persist_provider = DiskPersistProvider(os.path.join(mod_config.persist_folder, "persist"))
-            self._recorder = recorders.CsvRecorder(mod_config.persist_folder)
+            persist_folder = os.path.join(mod_config.persist_folder, "persist", str(mod_config.strategy_id))
+            persist_provider = DiskPersistProvider(persist_folder)
+            self._recorder = recorders.CsvRecorder(persist_folder)
         elif mod_config.recorder == "MongodbRecorder":
             if mod_config.strategy_id is None:
                 raise RuntimeError(_(u"You need to set strategy_id"))
@@ -92,12 +97,44 @@ class IncrementalMod(AbstractMod):
             self._meta["start_date"] = persist_meta["start_date"]
             if self._meta["last_end_time"] <= persist_meta["last_end_time"]:
                 raise ValueError('The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
-        env.set_data_source(IncrementcalDataSource(self._env.config.base.data_bundle_path,
-                                                   getattr(self._env.config.base, "future_info", {}),
-                                                   self._env.config.base.start_date))
+        self._event_start_time = event_start_time
+        self._overwrite_event_data_source_func()
 
-        event_source = IncrementalEventSource(env, event_start_time, self._env.config.base.end_date)
-        env.set_event_source(event_source)
+    def _overwrite_event_data_source_func(self):
+        self._env.data_source.available_data_range = self._available_data_range
+        self._env.event_source.events = self._events
+
+    def _available_data_range(self, frequency):
+        return self._env.config.base.start_date, datetime.date.max
+
+    def _events(self, start_date, end_date, frequency):
+        s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
+        config_end_date = self._env.config.base.end_date
+        event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < config_end_date else config_end_date
+        start_date, end_date = self._event_start_time, event_end_date
+
+        calendar_types = []
+        for account_type in self._env.config.base.accounts:
+            if account_type in (DEFAULT_ACCOUNT_TYPE.STOCK, DEFAULT_ACCOUNT_TYPE.FUTURE):
+                calendar_types.append(TRADING_CALENDAR_TYPE.EXCHANGE)
+            elif account_type == DEFAULT_ACCOUNT_TYPE.BOND:
+                calendar_types.append(TRADING_CALENDAR_TYPE.INTER_BANK)
+        trading_dates = self._env.event_source._get_merged_trading_dates(start_date, end_date, calendar_types)
+
+        if frequency == "1d":
+            # 根据起始日期和结束日期，获取所有的交易日，然后再循环获取每一个交易日
+            for day in trading_dates:
+                date = day.to_pydatetime()
+                dt_before_trading = date.replace(hour=0, minute=0)
+
+                dt_bar = self._env.event_source._get_day_bar_dt(date)
+                dt_after_trading = self._env.event_source._get_after_trading_dt(date)
+
+                yield Event(EVENT.BEFORE_TRADING, calendar_dt=dt_before_trading, trading_dt=dt_before_trading)
+                yield Event(EVENT.OPEN_AUCTION, calendar_dt=dt_before_trading, trading_dt=dt_before_trading)
+                yield Event(EVENT.BAR, calendar_dt=dt_bar, trading_dt=dt_bar)
+                yield Event(EVENT.AFTER_TRADING, calendar_dt=dt_after_trading, trading_dt=dt_after_trading)
+
 
     def _init(self, event):
         env = self._env
@@ -117,3 +154,4 @@ class IncrementalMod(AbstractMod):
             self._recorder.store_meta(self._meta)
             self._recorder.flush()
             self._recorder.close()
+
