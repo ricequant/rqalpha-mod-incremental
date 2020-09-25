@@ -112,28 +112,7 @@ class IncrementalMod(AbstractMod):
         config_end_date = self._env.config.base.end_date
         event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < config_end_date else config_end_date
         start_date, end_date = self._event_start_time, event_end_date
-
-        calendar_types = []
-        for account_type in self._env.config.base.accounts:
-            if account_type in (DEFAULT_ACCOUNT_TYPE.STOCK, DEFAULT_ACCOUNT_TYPE.FUTURE):
-                calendar_types.append(TRADING_CALENDAR_TYPE.EXCHANGE)
-            elif account_type == DEFAULT_ACCOUNT_TYPE.BOND:
-                calendar_types.append(TRADING_CALENDAR_TYPE.INTER_BANK)
-        trading_dates = self._env.event_source._get_merged_trading_dates(start_date, end_date, calendar_types)
-
-        if frequency == "1d":
-            # 根据起始日期和结束日期，获取所有的交易日，然后再循环获取每一个交易日
-            for day in trading_dates:
-                date = day.to_pydatetime()
-                dt_before_trading = date.replace(hour=0, minute=0)
-
-                dt_bar = self._env.event_source._get_day_bar_dt(date)
-                dt_after_trading = self._env.event_source._get_after_trading_dt(date)
-
-                yield Event(EVENT.BEFORE_TRADING, calendar_dt=dt_before_trading, trading_dt=dt_before_trading)
-                yield Event(EVENT.OPEN_AUCTION, calendar_dt=dt_before_trading, trading_dt=dt_before_trading)
-                yield Event(EVENT.BAR, calendar_dt=dt_bar, trading_dt=dt_bar)
-                yield Event(EVENT.AFTER_TRADING, calendar_dt=dt_after_trading, trading_dt=dt_after_trading)
+        self._env.event_source.events(start_date, end_date, frequency)
 
 
     def _init(self, event):
