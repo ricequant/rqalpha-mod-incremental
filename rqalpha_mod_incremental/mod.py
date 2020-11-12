@@ -19,14 +19,11 @@ import datetime
 
 from rqalpha.utils.logger import system_log
 from rqalpha.interface import AbstractMod
-from rqalpha.core.events import EVENT
 from rqalpha.const import PERSIST_MODE
 from rqalpha_mod_incremental.persist_providers import DiskPersistProvider
 from rqalpha.utils.i18n import gettext as _
 
 from rqalpha_mod_incremental import persist_providers, recorders
-from rqalpha_mod_incremental.incremental_event_source import IncrementalEventSource
-from rqalpha_mod_incremental.base_data_source.data_source import IncrementcalDataSource
 from rqalpha.const import INSTRUMENT_TYPE, DEFAULT_ACCOUNT_TYPE, MARKET, TRADING_CALENDAR_TYPE
 from rqalpha.utils.datetime_func import convert_int_to_date
 from rqalpha.core.events import Event, EVENT
@@ -102,18 +99,20 @@ class IncrementalMod(AbstractMod):
 
     def _overwrite_event_data_source_func(self):
         self._env.data_source.available_data_range = self._available_data_range
-        self._env.event_source.events = self._events
+        self._env.event_source.events = self._events_decorator(self._env.event_source.events)
 
     def _available_data_range(self, frequency):
         return self._env.config.base.start_date, datetime.date.max
 
-    def _events(self, start_date, end_date, frequency):
-        s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
-        config_end_date = self._env.config.base.end_date
-        event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < config_end_date else config_end_date
-        start_date, end_date = self._event_start_time, event_end_date
-        self._env.event_source.events(start_date, end_date, frequency)
+    def _events_decorator(self, original_events):
+        def events(_, __, frequency):
+            s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
+            config_end_date = self._env.config.base.end_date
+            event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < config_end_date else config_end_date
+            start_date, end_date = self._event_start_time, event_end_date
+            yield from original_events(start_date, end_date, frequency)
 
+        return events
 
     def _init(self, event):
         env = self._env
@@ -133,4 +132,3 @@ class IncrementalMod(AbstractMod):
             self._recorder.store_meta(self._meta)
             self._recorder.flush()
             self._recorder.close()
-

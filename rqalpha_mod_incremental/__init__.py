@@ -40,7 +40,6 @@ __config__ = {
     "strategy_id": 1,
     "mongo_url": None,
     "mongo_dbname": "rqalpha_records",
-    "priority": 250
 }
 
 
