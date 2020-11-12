@@ -19,14 +19,14 @@ import datetime
 
 from rqalpha.utils.logger import system_log
 from rqalpha.interface import AbstractMod
-from rqalpha.events import EVENT
 from rqalpha.const import PERSIST_MODE
 from rqalpha_mod_incremental.persist_providers import DiskPersistProvider
 from rqalpha.utils.i18n import gettext as _
 
 from rqalpha_mod_incremental import persist_providers, recorders
-from rqalpha_mod_incremental.incremental_event_source import IncrementalEventSource
-from rqalpha_mod_incremental.base_data_source.data_source import IncrementcalDataSource
+from rqalpha.const import INSTRUMENT_TYPE, DEFAULT_ACCOUNT_TYPE, MARKET, TRADING_CALENDAR_TYPE
+from rqalpha.utils.datetime_func import convert_int_to_date
+from rqalpha.core.events import Event, EVENT
 
 
 class IncrementalMod(AbstractMod):
@@ -34,11 +34,15 @@ class IncrementalMod(AbstractMod):
         self._env = None
         self._start_date = None
         self._end_date = None
+        self._event_start_time = None
 
     def start_up(self, env, mod_config):
         self._env = env
         self._recorder = None
         self._mod_config = mod_config
+
+        if not self._mod_config.persist_folder:
+            return
 
         self._set_env_and_data_source()
 
@@ -54,8 +58,9 @@ class IncrementalMod(AbstractMod):
         if mod_config.recorder == "CsvRecorder":
             if not mod_config.persist_folder:
                 raise RuntimeError(_(u"You need to set persist_folder to use CsvRecorder"))
-            persist_provider = DiskPersistProvider(os.path.join(mod_config.persist_folder, "persist"))
-            self._recorder = recorders.CsvRecorder(mod_config.persist_folder)
+            persist_folder = os.path.join(mod_config.persist_folder, "persist", str(mod_config.strategy_id))
+            persist_provider = DiskPersistProvider(persist_folder)
+            self._recorder = recorders.CsvRecorder(persist_folder)
         elif mod_config.recorder == "MongodbRecorder":
             if mod_config.strategy_id is None:
                 raise RuntimeError(_(u"You need to set strategy_id"))
@@ -82,19 +87,32 @@ class IncrementalMod(AbstractMod):
         persist_meta = self._recorder.load_meta()
         if persist_meta:
             # 不修改回测开始时间
-            self._env.config.base.start_date = persist_meta['start_date']
+            self._env.config.base.start_date = datetime.datetime.strptime(persist_meta['start_date'], '%Y-%m-%d').date()
             event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'], '%Y-%m-%d').date() + datetime.timedelta(days=1)
             # 代表历史有运行过，根据历史上次运行的end_date下一天设为事件发送的start_time
-
             self._meta["origin_start_date"] = persist_meta["origin_start_date"]
             self._meta["start_date"] = persist_meta["start_date"]
-            self._meta["last_end_time"] = self._env.config.base.end_date.strftime("%Y-%m-%d")
-        env.set_data_source(IncrementcalDataSource(self._env.config.base.data_bundle_path,
-                                                   getattr(self._env.config.base, "future_info", {}),
-                                                   self._env.config.base.start_date))
+            if self._meta["last_end_time"] <= persist_meta["last_end_time"]:
+                raise ValueError('The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
+        self._event_start_time = event_start_time
+        self._overwrite_event_data_source_func()
 
-        event_source = IncrementalEventSource(env, event_start_time, self._env.config.base.end_date)
-        env.set_event_source(event_source)
+    def _overwrite_event_data_source_func(self):
+        self._env.data_source.available_data_range = self._available_data_range
+        self._env.event_source.events = self._events_decorator(self._env.event_source.events)
+
+    def _available_data_range(self, frequency):
+        return self._env.config.base.start_date, datetime.date.max
+
+    def _events_decorator(self, original_events):
+        def events(_, __, frequency):
+            s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
+            config_end_date = self._env.config.base.end_date
+            event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < config_end_date else config_end_date
+            start_date, end_date = self._event_start_time, event_end_date
+            yield from original_events(start_date, end_date, frequency)
+
+        return events
 
     def _init(self, event):
         env = self._env
@@ -108,6 +126,8 @@ class IncrementalMod(AbstractMod):
         pass
 
     def tear_down(self, success, exception=None):
+        if not self._mod_config.persist_folder:
+            return
         if exception is None:
             self._recorder.store_meta(self._meta)
             self._recorder.flush()
