@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import os
 import datetime
 
@@ -22,11 +21,10 @@ from rqalpha.interface import AbstractMod
 from rqalpha.const import PERSIST_MODE
 from rqalpha_mod_incremental.persist_providers import DiskPersistProvider
 from rqalpha.utils.i18n import gettext as _
+from rqalpha.data.base_data_source import BaseDataSource
 
 from rqalpha_mod_incremental import persist_providers, recorders
-from rqalpha.const import INSTRUMENT_TYPE, DEFAULT_ACCOUNT_TYPE, MARKET, TRADING_CALENDAR_TYPE
-from rqalpha.utils.datetime_func import convert_int_to_date
-from rqalpha.core.events import Event, EVENT
+from rqalpha.core.events import EVENT
 
 
 class IncrementalMod(AbstractMod):
@@ -43,6 +41,10 @@ class IncrementalMod(AbstractMod):
 
         if not self._mod_config.persist_folder:
             return
+
+        config = self._env.config
+        if not env.data_source:
+            env.set_data_source(BaseDataSource(config.base.data_bundle_path, getattr(config.base, "future_info", {})))
 
         self._set_env_and_data_source()
 
@@ -106,9 +108,11 @@ class IncrementalMod(AbstractMod):
 
     def _events_decorator(self, original_events):
         def events(_, __, frequency):
-            s, e = self._env.data_source._day_bars[INSTRUMENT_TYPE.INDX].get_date_range('000001.XSHG')
+            config = self._env.config
+            base_data_source = BaseDataSource(config.base.data_bundle_path, getattr(config.base, "future_info", {}))
+            s, e = base_data_source.available_data_range(frequency)
             config_end_date = self._env.config.base.end_date
-            event_end_date = convert_int_to_date(e) if convert_int_to_date(e).date() < config_end_date else config_end_date
+            event_end_date = e if e < config_end_date else config_end_date
             start_date, end_date = self._event_start_time, event_end_date
             yield from original_events(start_date, end_date, frequency)
 
