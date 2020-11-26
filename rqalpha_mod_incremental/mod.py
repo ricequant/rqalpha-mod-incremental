@@ -108,9 +108,7 @@ class IncrementalMod(AbstractMod):
 
     def _events_decorator(self, original_events):
         def events(_, __, frequency):
-            config = self._env.config
-            base_data_source = BaseDataSource(config.base.data_bundle_path, getattr(config.base, "future_info", {}))
-            s, e = base_data_source.available_data_range(frequency)
+            s, e = self._env.data_source.available_data_range(frequency)
             config_end_date = self._env.config.base.end_date
             event_end_date = e if e < config_end_date else config_end_date
             start_date, end_date = self._event_start_time, event_end_date
