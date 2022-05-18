@@ -13,6 +13,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+
+在策略中  设置config['mod']["incremental"]控制债券mod配置
+
+.. code-block:: python
+
+    __config__ = {
+        # 持久化文件夹路径，不设置则不启用mod
+        "persist_folder": None,
+        # 策略id，持久化的回测将保存在以strategy_id命名的文件夹下
+        "strategy_id": 1,
+    }
+"""
 
 import click
 from rqalpha import cli
@@ -24,9 +37,10 @@ __config__ = {
     # 当设置为 CsvRecorder 的时候使用，持久化数据输出文件夹
     "persist_folder": None,
     # 当设置为 MongodbRecorder 的时候使用
-    "strategy_id": None,
+    "strategy_id": 1,
     "mongo_url": None,
     "mongo_dbname": "rqalpha_records",
+    "priority": 111,
 }
 
 
