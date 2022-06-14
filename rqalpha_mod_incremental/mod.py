@@ -33,6 +33,8 @@ class IncrementalMod(AbstractMod):
         self._start_date = None
         self._end_date = None
         self._event_start_time = None
+        # 上一次回测时的最后交易日期
+        self._last_end_date = None
 
     def start_up(self, env, mod_config):
         self._env = env
@@ -96,6 +98,7 @@ class IncrementalMod(AbstractMod):
             self._meta["start_date"] = persist_meta["start_date"]
             if self._meta["last_end_time"] <= persist_meta["last_end_time"]:
                 raise ValueError('The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
+            self._last_end_date = datetime.datetime.strptime(persist_meta["last_end_time"], "%Y-%m-%d").date()
         self._event_start_time = event_start_time
         self._overwrite_event_data_source_func()
 
@@ -119,13 +122,19 @@ class IncrementalMod(AbstractMod):
     def _init(self, event):
         env = self._env
         env.event_bus.add_listener(EVENT.TRADE, self.on_trade)
-        env.event_bus.add_listener(EVENT.POST_SETTLEMENT, self.on_settlement)
+        env.event_bus.prepend_listener(EVENT.POST_SETTLEMENT, self.on_settlement)
 
     def on_trade(self, event):
         pass
 
     def on_settlement(self, event):
-        pass
+        """
+        当本轮回测当前交易日期大于上一轮回测的最后交易日期时，才允许执行结算事件。
+        回测结算是放在before_trading中，在增量回测的过程中会导致出现临界点结算两次。
+        """
+        if not self._last_end_date or self._env.trading_dt.date() > self._last_end_date:
+            return False
+        return True
 
     def tear_down(self, success, exception=None):
         if not self._mod_config.persist_folder:
