@@ -30,6 +30,10 @@
 import click
 from rqalpha import cli
 
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
+
 
 __config__ = {
     # 是否启用 csv 保存 feeds 功能，可以设置为 MongodbRecorder
