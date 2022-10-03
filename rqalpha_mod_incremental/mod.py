@@ -41,8 +41,15 @@ class IncrementalMod(AbstractMod):
         self._recorder = None
         self._mod_config = mod_config
 
-        if not self._mod_config.persist_folder:
-            return
+        if mod_config.recorder == "CsvRecorder":
+            if mod_config.persist_folder is None:
+                raise RuntimeError(_(u"You need to set persist_folder to use CsvRecorder!"))
+        elif mod_config.recorder == "MongodbRecorder":
+            if mod_config.strategy_id is None or mod_config.mongo_url is None or mod_config.mongo_dbname is None:
+                raise RuntimeError(_(u"MongodbRecorder requires strategy_id, mongo_url and mongo_dbname! "
+                                     u"But got {}").format(mod_config))
+        else:
+            raise RuntimeError(_(u"unknown recorder {}").format(mod_config.recorder))
 
         config = self._env.config
         if not env.data_source:
@@ -60,14 +67,10 @@ class IncrementalMod(AbstractMod):
         mod_config = self._mod_config
         system_log.info("use recorder {}", mod_config.recorder)
         if mod_config.recorder == "CsvRecorder":
-            if not mod_config.persist_folder:
-                raise RuntimeError(_(u"You need to set persist_folder to use CsvRecorder"))
             persist_folder = os.path.join(mod_config.persist_folder, "persist", str(mod_config.strategy_id))
             persist_provider = DiskPersistProvider(persist_folder)
             self._recorder = recorders.CsvRecorder(persist_folder)
         elif mod_config.recorder == "MongodbRecorder":
-            if mod_config.strategy_id is None:
-                raise RuntimeError(_(u"You need to set strategy_id"))
             persist_provider = persist_providers.MongodbPersistProvider(mod_config.strategy_id, mod_config.mongo_url,
                                                                         mod_config.mongo_dbname)
             self._recorder = recorders.MongodbRecorder(mod_config.strategy_id,
