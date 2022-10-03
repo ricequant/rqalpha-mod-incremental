@@ -16,7 +16,8 @@ class MongodbPersistProvider(AbstractPersistProvider):
     def store(self, key, value):
         update_time = datetime.datetime.now()
         self._fs.put(value, strategy_id=self._strategy_id, key=key, update_time=update_time)
-        for grid_out in self._fs.find({"strategy_id": self._strategy_id, "key": key, "update_time": {"$lt": update_time}}):
+        for grid_out in self._fs.find(
+                {"strategy_id": self._strategy_id, "key": key, "update_time": {"$lt": update_time}}):
             self._fs.delete(grid_out._id)
 
     def load(self, key, large_file=False):
@@ -26,6 +27,12 @@ class MongodbPersistProvider(AbstractPersistProvider):
             return b.read()
         except gridfs.errors.NoFile:
             return None
+
+    def should_resume(self):
+        return False
+
+    def should_run_init(self):
+        return False
 
 
 class DiskPersistProvider(AbstractPersistProvider):
@@ -53,3 +60,5 @@ class DiskPersistProvider(AbstractPersistProvider):
 
     def should_run_init(self):
         return False
+if __name__ == '__main__':
+    mg = MongodbPersistProvider(1,2,3)
