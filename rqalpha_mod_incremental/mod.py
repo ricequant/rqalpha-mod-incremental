@@ -95,12 +95,14 @@ class IncrementalMod(AbstractMod):
         if persist_meta:
             # 不修改回测开始时间
             self._env.config.base.start_date = datetime.datetime.strptime(persist_meta['start_date'], '%Y-%m-%d').date()
-            event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'], '%Y-%m-%d').date() + datetime.timedelta(days=1)
+            event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'],
+                                                          '%Y-%m-%d').date() + datetime.timedelta(days=1)
             # 代表历史有运行过，根据历史上次运行的end_date下一天设为事件发送的start_time
             self._meta["origin_start_date"] = persist_meta["origin_start_date"]
             self._meta["start_date"] = persist_meta["start_date"]
             if self._meta["last_end_time"] <= persist_meta["last_end_time"]:
-                raise ValueError('The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
+                raise ValueError(
+                    'The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
             self._last_end_date = datetime.datetime.strptime(persist_meta["last_end_time"], "%Y-%m-%d").date()
         self._event_start_time = event_start_time
         self._overwrite_event_data_source_func()
@@ -140,8 +142,6 @@ class IncrementalMod(AbstractMod):
         return True
 
     def tear_down(self, success, exception=None):
-        if not self._mod_config.persist_folder:
-            return
         if exception is None:
             self._recorder.store_meta(self._meta)
             self._recorder.flush()
