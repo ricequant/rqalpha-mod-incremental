@@ -33,8 +33,7 @@ class IncrementalMod(AbstractMod):
         self._start_date = None
         self._end_date = None
         self._event_start_time = None
-        # 上一次回测时的最后交易日期
-        self._last_end_date = None
+        self._last_end_date = None              # 上一次回测时的最后交易日期
 
     def start_up(self, env, mod_config):
         self._env = env
@@ -54,6 +53,19 @@ class IncrementalMod(AbstractMod):
         env.config.base.persist_mode = PERSIST_MODE.ON_NORMAL_EXIT
 
         env.event_bus.add_listener(EVENT.POST_SYSTEM_INIT, self._init)
+        env.event_bus.add_listener(EVENT.BEFORE_SYSTEM_RESTORED, self._before_system_restored)
+        env.event_bus.add_listener(EVENT.POST_SYSTEM_RESTORED, self._post_system_restored)
+
+    def _before_system_restored(self, event):
+        # 解决在非1d频率下, 恢复数据时 get_future_trading_date 出现异常
+        if self._env.config.base.frequency != "1d":
+            self._frequency = self._env.config.base.frequency
+            self._env.config.base.frequency = "1d"
+        else:
+            self._frequency = "1d"
+
+    def _post_system_restored(self, event):
+        self._env.config.base.frequency = self._frequency
 
     def _set_env_and_data_source(self):
         env = self._env
