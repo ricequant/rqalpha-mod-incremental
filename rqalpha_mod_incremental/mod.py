@@ -123,6 +123,13 @@ class IncrementalMod(AbstractMod):
         env = self._env
         env.event_bus.add_listener(EVENT.TRADE, self.on_trade)
         env.event_bus.prepend_listener(EVENT.POST_SETTLEMENT, self.on_settlement)
+        env.event_bus.add_listener(EVENT.BEFORE_SYSTEM_RESTORED, self.on_before_system_restored)
+
+    def on_before_system_restored(self, event):
+        if self._last_end_date:
+            # 将日期调整为上一个区间的结束日期的收盘时间段
+            _datetime = datetime.datetime.combine(self._last_end_date, datetime.time(hour=15, minute=30, second=0))
+            self._env.update_time(_datetime, _datetime)
 
     def on_trade(self, event):
         pass
