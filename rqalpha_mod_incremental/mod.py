@@ -126,6 +126,8 @@ class IncrementalMod(AbstractMod):
         env.event_bus.add_listener(EVENT.BEFORE_SYSTEM_RESTORED, self.on_before_system_restored)
 
     def on_before_system_restored(self, event):
+        # 此时end_date已经经过调整，重新保存
+        self._meta["last_end_time"] = self._env.config.base.end_date.strftime("%Y-%m-%d")
         if self._last_end_date:
             # 将日期调整为上一个区间的结束日期的收盘时间段
             _datetime = datetime.datetime.combine(self._last_end_date, datetime.time(hour=15, minute=30, second=0))
