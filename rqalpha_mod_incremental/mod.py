@@ -18,7 +18,7 @@ import datetime
 
 from rqalpha.utils.logger import system_log
 from rqalpha.interface import AbstractMod
-from rqalpha.const import PERSIST_MODE
+from rqalpha.const import PERSIST_MODE, DEFAULT_ACCOUNT_TYPE
 from rqalpha_mod_incremental.persist_providers import DiskPersistProvider
 from rqalpha.utils.i18n import gettext as _
 from rqalpha.data.base_data_source import BaseDataSource
@@ -46,7 +46,12 @@ class IncrementalMod(AbstractMod):
 
         config = self._env.config
         if not env.data_source:
-            env.set_data_source(BaseDataSource(config.base.data_bundle_path, getattr(config.base, "future_info", {})))
+            env.set_data_source(BaseDataSource(
+                config.base.data_bundle_path, 
+                getattr(config.base, "future_info", {}),
+                DEFAULT_ACCOUNT_TYPE.FUTURE in env.config.base.accounts and env.config.base.futures_time_series_trading_parameters,
+                env.config.base.end_date
+            ))
 
         self._set_env_and_data_source()
 
