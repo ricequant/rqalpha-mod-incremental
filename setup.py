@@ -19,11 +19,6 @@ import versioneer
 from setuptools import find_packages, setup
 
 
-requirements = [
-    "rqalpha>=5.3.5"
-]
-
-
 setup(
     name='rqalpha-mod-incremental',
     version=versioneer.get_version(),
@@ -36,6 +31,7 @@ setup(
     package_data={'': ['*.*']},
     install_requires=[
         'pymongo',
+        'rqalpha>=5.3.5'
     ],
     zip_safe=False,
 )
