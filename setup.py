@@ -31,6 +31,7 @@ setup(
     package_data={'': ['*.*']},
     install_requires=[
         'pymongo',
+        'rqalpha>=5.3.5'
     ],
     zip_safe=False,
 )
