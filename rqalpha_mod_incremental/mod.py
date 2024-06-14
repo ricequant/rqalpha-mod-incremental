@@ -41,8 +41,15 @@ class IncrementalMod(AbstractMod):
         self._recorder = None
         self._mod_config = mod_config
 
-        if not self._mod_config.persist_folder:
-            return
+        if mod_config.recorder == "CsvRecorder":
+            if mod_config.persist_folder is None:
+                raise RuntimeError(_(u"You need to set persist_folder to use CsvRecorder!"))
+        elif mod_config.recorder == "MongodbRecorder":
+            if mod_config.strategy_id is None or mod_config.mongo_url is None or mod_config.mongo_dbname is None:
+                raise RuntimeError(_(u"MongodbRecorder requires strategy_id, mongo_url and mongo_dbname! "
+                                     u"But got {}").format(mod_config))
+        else:
+            raise RuntimeError(_(u"unknown recorder {}").format(mod_config.recorder))
 
         config = self._env.config
         if not env.data_source:
@@ -65,14 +72,10 @@ class IncrementalMod(AbstractMod):
         mod_config = self._mod_config
         system_log.info("use recorder {}", mod_config.recorder)
         if mod_config.recorder == "CsvRecorder":
-            if not mod_config.persist_folder:
-                raise RuntimeError(_(u"You need to set persist_folder to use CsvRecorder"))
             persist_folder = os.path.join(mod_config.persist_folder, "persist", str(mod_config.strategy_id))
             persist_provider = DiskPersistProvider(persist_folder)
             self._recorder = recorders.CsvRecorder(persist_folder)
         elif mod_config.recorder == "MongodbRecorder":
-            if mod_config.strategy_id is None:
-                raise RuntimeError(_(u"You need to set strategy_id"))
             persist_provider = persist_providers.MongodbPersistProvider(mod_config.strategy_id, mod_config.mongo_url,
                                                                         mod_config.mongo_dbname)
             self._recorder = recorders.MongodbRecorder(mod_config.strategy_id,
@@ -97,12 +100,14 @@ class IncrementalMod(AbstractMod):
         if persist_meta:
             # 不修改回测开始时间
             self._env.config.base.start_date = datetime.datetime.strptime(persist_meta['start_date'], '%Y-%m-%d').date()
-            event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'], '%Y-%m-%d').date() + datetime.timedelta(days=1)
+            event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'],
+                                                          '%Y-%m-%d').date() + datetime.timedelta(days=1)
             # 代表历史有运行过，根据历史上次运行的end_date下一天设为事件发送的start_time
             self._meta["origin_start_date"] = persist_meta["origin_start_date"]
             self._meta["start_date"] = persist_meta["start_date"]
             if self._meta["last_end_time"] <= persist_meta["last_end_time"]:
-                raise ValueError('The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
+                raise ValueError(
+                    'The end_date should after end_date({}) last time'.format(persist_meta["last_end_time"]))
             self._last_end_date = datetime.datetime.strptime(persist_meta["last_end_time"], "%Y-%m-%d").date()
         self._event_start_time = event_start_time
         self._overwrite_event_data_source_func()
@@ -151,8 +156,6 @@ class IncrementalMod(AbstractMod):
         return True
 
     def tear_down(self, success, exception=None):
-        if not self._mod_config.persist_folder:
-            return
         if exception is None:
             self._recorder.store_meta(self._meta)
             self._recorder.flush()
