@@ -41,7 +41,7 @@ class IncrementalMod(AbstractMod):
         self._recorder = None
         self._mod_config = mod_config
 
-        if not self._mod_config.persist_folder:
+        if self._mod_config.recorder == "CsvRecorder" and not self._mod_config.persist_folder:
             return
 
         config = self._env.config
@@ -151,7 +151,7 @@ class IncrementalMod(AbstractMod):
         return True
 
     def tear_down(self, success, exception=None):
-        if not self._mod_config.persist_folder:
+        if self._mod_config.recorder == "CsvRecorder" and not self._mod_config.persist_folder:
             return
         if exception is None:
             self._recorder.store_meta(self._meta)
