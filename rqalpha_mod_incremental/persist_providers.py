@@ -23,9 +23,16 @@ class MongodbPersistProvider(AbstractPersistProvider):
         import gridfs
         try:
             b = self._fs.get_last_version(strategy_id=self._strategy_id, key=key)
-            return b.read()
+            data = b.read()
+            return data
         except gridfs.errors.NoFile:
             return None
+
+    def should_resume(self):
+        return False
+
+    def should_run_init(self):
+        return False
 
 
 class DiskPersistProvider(AbstractPersistProvider):
