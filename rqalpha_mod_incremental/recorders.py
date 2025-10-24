@@ -163,7 +163,7 @@ class MongodbRecorder(Recorder):
         return self._db["meta"].find_one({"strategy_id": self._strategy_id})
 
     def store_meta(self, meta_dict):
-        self._db["meta"].update({"strategy_id": self._strategy_id}, meta_dict, upsert=True)
+        self._db["meta"].update_one({"strategy_id": self._strategy_id}, {"$set": meta_dict}, upsert=True)
 
     def _portfolio2dict(self, dt, portfolio):
         dic = {key: getattr(portfolio, key) for key in self.PORTFOLIO_CSV_HEADER if key != "datetime"}
