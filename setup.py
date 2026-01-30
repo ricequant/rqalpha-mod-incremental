@@ -15,23 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import versioneer
 from setuptools import find_packages, setup
 
 
-setup(
-    name='rqalpha-mod-incremental',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
-    description='rqalpha-mod-incremental',
-    packages=find_packages(exclude=[]),
-    author='ricequant',
-    author_email='public@ricequant.com',
-    license='Apache License v2',
-    package_data={'': ['*.*']},
-    install_requires=[
-        'pymongo',
-        'rqalpha>=5.3.5'
-    ],
-    zip_safe=False,
-)
+setup()

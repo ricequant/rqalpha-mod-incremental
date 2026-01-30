@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rqalpha-mod-incremental"
+dynamic = ["version"]
+description = "rqalpha-mod-incremental"
+readme = "README.rst"
+license = {text = "Apache License v2"}
+authors = [
+    {name = "ricequant", email = "public@ricequant.com"}
+]
+requires-python = ">=3.7"
+dependencies = [
+    "pymongo",
+    "rqalpha>=6.1.1"
+]
+
+[project.urls]
+Homepage = "https://github.com/ricequant/rqalpha-mod-incremental"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rqalpha_mod_incremental*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.*"]
+
+[tool.setuptools_scm]
+write_to = "rqalpha_mod_incremental/_version.py"

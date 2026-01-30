@@ -18,51 +18,33 @@ import datetime
 
 from rqalpha.utils.logger import system_log
 from rqalpha.interface import AbstractMod
-from rqalpha.const import PERSIST_MODE, DEFAULT_ACCOUNT_TYPE
+from rqalpha.const import PERSIST_MODE
+from rqalpha.environment import Environment
 from rqalpha_mod_incremental.persist_providers import DiskPersistProvider
 from rqalpha.utils.i18n import gettext as _
 from rqalpha.data.base_data_source import BaseDataSource
-
 from rqalpha_mod_incremental import persist_providers, recorders
 from rqalpha.core.events import EVENT
 
 
 class IncrementalMod(AbstractMod):
     def __init__(self):
-        self._env = None
-        self._start_date = None
-        self._end_date = None
         self._event_start_time = None
-        # 上一次回测时的最后交易日期
-        self._last_end_date = None
-
-    def start_up(self, env, mod_config):
-        self._env = env
+        self._last_end_date = None  # 上一次回测时的最后交易日期
         self._recorder = None
-        self._mod_config = mod_config
 
-        if self._mod_config.recorder == "CsvRecorder" and not self._mod_config.persist_folder:
-            return
-
-        config = self._env.config
+    def start_up(self, env: Environment, mod_config):
         if not env.data_source:
-            env.set_data_source(BaseDataSource(
-                config.base.data_bundle_path, 
-                getattr(config.base, "future_info", {}),
-                DEFAULT_ACCOUNT_TYPE.FUTURE in env.config.base.accounts and env.config.base.futures_time_series_trading_parameters,
-                env.config.base.end_date
-            ))
-
-        self._set_env_and_data_source()
+            env.set_data_source(BaseDataSource(env.config.base))
+        self._set_env_and_data_source(env, mod_config)
 
         env.config.base.persist = True
         env.config.base.persist_mode = PERSIST_MODE.ON_NORMAL_EXIT
 
         env.event_bus.add_listener(EVENT.POST_SYSTEM_INIT, self._init)
 
-    def _set_env_and_data_source(self):
-        env = self._env
-        mod_config = self._mod_config
+    def _set_env_and_data_source(self, env: Environment, mod_config):
+        self._env = env
         system_log.info("use recorder {}", mod_config.recorder)
         if mod_config.recorder == "CsvRecorder":
             if not mod_config.persist_folder:
@@ -85,18 +67,18 @@ class IncrementalMod(AbstractMod):
 
         self._meta = {
             "strategy_id": mod_config.strategy_id,
-            "origin_start_date": self._env.config.base.start_date.strftime("%Y-%m-%d"),
-            "start_date": self._env.config.base.start_date.strftime("%Y-%m-%d"),
-            "end_date": self._env.config.base.end_date.strftime("%Y-%m-%d"),
-            "last_end_time": self._env.config.base.end_date.strftime("%Y-%m-%d"),
+            "origin_start_date": env.config.base.start_date.strftime("%Y-%m-%d"),
+            "start_date": env.config.base.start_date.strftime("%Y-%m-%d"),
+            "end_date": env.config.base.end_date.strftime("%Y-%m-%d"),
+            "last_end_time": env.config.base.end_date.strftime("%Y-%m-%d"),
             "last_run_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        event_start_time = self._env.config.base.start_date
+        event_start_time = env.config.base.start_date
         persist_meta = self._recorder.load_meta()
         if persist_meta:
             # 不修改回测开始时间
-            self._env.config.base.start_date = datetime.datetime.strptime(persist_meta['start_date'], '%Y-%m-%d').date()
+            env.config.base.start_date = datetime.datetime.strptime(persist_meta['start_date'], '%Y-%m-%d').date()
             event_start_time = datetime.datetime.strptime(persist_meta['last_end_time'], '%Y-%m-%d').date() + datetime.timedelta(days=1)
             # 代表历史有运行过，根据历史上次运行的end_date下一天设为事件发送的start_time
             self._meta["origin_start_date"] = persist_meta["origin_start_date"]
@@ -125,10 +107,9 @@ class IncrementalMod(AbstractMod):
         return events
 
     def _init(self, event):
-        env = self._env
-        env.event_bus.add_listener(EVENT.TRADE, self.on_trade)
-        env.event_bus.prepend_listener(EVENT.POST_SETTLEMENT, self.on_settlement)
-        env.event_bus.add_listener(EVENT.BEFORE_SYSTEM_RESTORED, self.on_before_system_restored)
+        self._env.event_bus.add_listener(EVENT.TRADE, self.on_trade)
+        self._env.event_bus.prepend_listener(EVENT.POST_SETTLEMENT, self.on_settlement)
+        self._env.event_bus.add_listener(EVENT.BEFORE_SYSTEM_RESTORED, self.on_before_system_restored)
 
     def on_before_system_restored(self, event):
         # 此时end_date已经经过调整，重新保存
@@ -150,8 +131,8 @@ class IncrementalMod(AbstractMod):
             return False
         return True
 
-    def tear_down(self, success, exception=None):
-        if self._mod_config.recorder == "CsvRecorder" and not self._mod_config.persist_folder:
+    def tear_down(self, code, exception=None):
+        if self._recorder is None:
             return
         if exception is None:
             self._recorder.store_meta(self._meta)

@@ -20,3 +20,4 @@ persist/
 .tox
 rqalpha_test_coverage_report/
 .tmp.pkl
+rqalpha_mod_incremental/_version.py
