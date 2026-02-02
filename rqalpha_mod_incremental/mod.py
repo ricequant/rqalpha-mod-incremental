@@ -34,7 +34,7 @@ class IncrementalMod(AbstractMod):
         self._recorder = None
 
     def start_up(self, env: Environment, mod_config):
-        if not env.data_source:
+        if not getattr(env, "data_source", None):
             env.set_data_source(BaseDataSource(env.config.base))
         self._set_env_and_data_source(env, mod_config)
 
