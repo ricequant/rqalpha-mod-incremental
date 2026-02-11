@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from ast import mod
 import os
 import datetime
 
@@ -34,6 +35,8 @@ class IncrementalMod(AbstractMod):
         self._recorder = None
 
     def start_up(self, env: Environment, mod_config):
+        if mod_config.recorder is None:
+            return
         if not getattr(env, "data_source", None):
             env.set_data_source(BaseDataSource(env.config.base))
         self._set_env_and_data_source(env, mod_config)

@@ -34,8 +34,8 @@ from ._version import __version__
 
 
 __config__ = {
-    # 是否启用 csv 保存 feeds 功能，可以设置为 MongodbRecorder
-    "recorder": "CsvRecorder",
+    # 是否启用 csv 保存 feeds 功能，可以设置为 CsvRecorder 和 MongodbRecorder
+    "recorder": None,
     # 当设置为 CsvRecorder 的时候使用，持久化数据输出文件夹
     "persist_folder": None,
     # 当设置为 MongodbRecorder 的时候使用
